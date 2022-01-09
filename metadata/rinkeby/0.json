@@ -1,0 +1,14 @@
+{
+    "name": "Ticket #0000",
+    "description": "Testing.... Don't look up!",
+    "image": "https://ipfs.io/ipfs/QmQbBmBQ7Dmic6FrpfYniphKG94gJpN4z1TW88ESu9tLSK?filename=temp.mp4",
+    "external_link": "https://testnets.opensea.io/0x7f74d8e6d7ea5881cab221f83a3f0bb788c79e57",
+    "attributes": [
+        {
+            "trait_type": "value",
+            "value": 100
+        }
+    ],
+    "fee_recipient": "",
+    "seller_fee_basis_points": 0
+}
