@@ -16,11 +16,11 @@
 pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 
-// tokenId: prime 0 ~999,                       vital 0~9999
-//          reserved prime: 10000~10099,        reserved vital: 10100 ~ 11000
-contract nft_dropsV2 is ERC721, Ownable {
+// tokenId: prime 0 ~ 999,                       vital 0 ~ 9999
+//          reserved prime 10000 ~ 10099,        reserved vitl 10100 ~ 11000
+contract nft_dropsV2 is ERC721Enumerable, Ownable {
     uint16 public immutable MAX_VITAL_PASSES;
     uint16 public immutable MAX_PRIME_PASSES;
     uint16 public immutable MAX_VITAL_WHITELIST;
@@ -36,46 +36,54 @@ contract nft_dropsV2 is ERC721, Ownable {
     uint16 public counterVitalReserved;
     uint16 public counterPrimeReserved;
 
-    uint256 public TIME_LIMIT = 7 days;
-    uint256 public DEADLINE;
+    uint256 public period;
 
-    uint256 public PRICE_VITAL_PASS = 0.1 ether;
-    uint256 public PRICE_PRIME_PASS = 0.1 ether;
+    uint256 public PRICE_VITAL_PASS = 0.2 ether;
+    uint256 public PRICE_PRIME_PASS = 0.8 ether;
 
     string public BASE_URI;
 
-    bool public activeVitalPublic = false;
-    bool public activePrimePublic = false;
-    bool public activeVitalWhitelist = false;
-    bool public activePrimeWhitelist = false;
+    uint256 public vitalPublicStart;
+    uint256 public primePublicStart;
+    uint256 public vitalWhitelistStart;
+    uint256 public primeWhitelistStart;
 
     mapping(address => uint8) public balanceVital;
     mapping(address => uint8) public balancePrime;
     event BaseURIChanged(string BASE_URI);
 
-    constructor() ERC721("qwef159", "qwvsda") {
-        MAX_VITAL_PASSES = 9000;
-        MAX_PRIME_PASSES = 1000;
-        MAX_VITAL_WHITELIST = 900;
-        MAX_PRIME_WHITELIST = 180;
+    constructor(
+        uint256 _vitalPublicStart,
+        uint256 _primePublicStart,
+        uint256 _vitalWhitelistStart,
+        uint256 _primeWhitelistStart,
+        uint256 _period
+    ) ERC721("qwef159", "qwvsda") {
+        MAX_VITAL_PASSES = 8000;
+        MAX_PRIME_PASSES = 2000;
+        MAX_VITAL_WHITELIST = 800;
+        MAX_PRIME_WHITELIST = 200;
         MAX_RESERVED_VITAL_PASS = 900;
         MAX_RESERVED_PRIME_PASS = 100;
-        MAX_VITAL_PER_WALLET = 10;
-        MAX_PRIME_PER_WALLET = 10;
+        MAX_VITAL_PER_WALLET = 5;
+        MAX_PRIME_PER_WALLET = 1;
         counterVitalPass = 0;
         counterPrimePass = 0;
         counterVitalReserved = 0;
         counterPrimeReserved = 0;
+        vitalPublicStart = 0;
+        primePublicStart = 0;
+        vitalWhitelistStart = 0;
+        primeWhitelistStart = 0;
+        period = _period;
     }
 
     // ------------------------------------------------------------------------------------------
     // Public Minting
     function mintVital(uint8 amount) external payable {
-        if (block.timestamp >= DEADLINE) {
-            closeMint();
-        }
         require(
-            activeVitalPublic == true,
+            block.timestamp >= vitalPublicStart &&
+                block.timestamp <= vitalPublicStart + period,
             "Public vital pass minting is closed"
         );
         require(
@@ -93,17 +101,12 @@ contract nft_dropsV2 is ERC721, Ownable {
         }
         balanceVital[msg.sender] += amount;
         payable(owner()).transfer(msg.value);
-        if (counterVitalPass >= MAX_VITAL_PASSES) {
-            activeVitalPublic = false;
-        }
     }
 
     function mintPrime(uint8 amount) external payable {
-        if (block.timestamp >= DEADLINE) {
-            closeMint();
-        }
         require(
-            activePrimePublic == true,
+            block.timestamp >= primePublicStart &&
+                block.timestamp <= primePublicStart + period,
             "Public prime pass minting is closed"
         );
         require(
@@ -121,19 +124,14 @@ contract nft_dropsV2 is ERC721, Ownable {
         }
         balancePrime[msg.sender] += amount;
         payable(owner()).transfer(msg.value);
-        if (counterPrimePass >= MAX_PRIME_PASSES) {
-            activePrimePublic = false;
-        }
     }
 
     // ------------------------------------------------------------------------------------------
     // Whitelist Minting
     function mintVitalWhitelist(uint8 amount) external payable {
-        if (block.timestamp >= DEADLINE) {
-            closeMint();
-        }
         require(
-            activeVitalWhitelist == true,
+            block.timestamp >= vitalWhitelistStart &&
+                block.timestamp <= vitalWhitelistStart + period,
             "Whitelist vital pass minting is closed"
         );
         require(
@@ -151,17 +149,12 @@ contract nft_dropsV2 is ERC721, Ownable {
         }
         balanceVital[msg.sender] += amount;
         payable(owner()).transfer(msg.value);
-        if (counterVitalPass >= MAX_VITAL_WHITELIST) {
-            activeVitalWhitelist = false;
-        }
     }
 
     function mintPrimeWhitelist(uint8 amount) external payable {
-        if (block.timestamp >= DEADLINE) {
-            closeMint();
-        }
         require(
-            activePrimeWhitelist == true,
+            block.timestamp >= primeWhitelistStart &&
+                block.timestamp <= primeWhitelistStart + period,
             "Whitelist prime minting is closed"
         );
         require(
@@ -179,9 +172,6 @@ contract nft_dropsV2 is ERC721, Ownable {
         }
         balancePrime[msg.sender] += amount;
         payable(owner()).transfer(msg.value);
-        if (counterPrimePass >= MAX_PRIME_WHITELIST) {
-            activePrimeWhitelist = false;
-        }
     }
 
     // ------------------------------------------------------------------------------------------
@@ -204,23 +194,14 @@ contract nft_dropsV2 is ERC721, Ownable {
 
     // ------------------------------------------------------------------------------------------
     // Change Mint Status
-    function openMint() external onlyOwner {
-        activeVitalPublic = true;
-        activePrimePublic = true;
-        DEADLINE = block.timestamp + TIME_LIMIT;
-    }
-
-    function openWhitelistMint() external onlyOwner {
-        activeVitalWhitelist = true;
-        activePrimeWhitelist = true;
-        DEADLINE = block.timestamp + TIME_LIMIT;
-    }
-
-    function closeMint() public onlyOwner {
-        activeVitalPublic = false;
-        activePrimePublic = false;
-        activeVitalWhitelist = false;
-        activePrimeWhitelist = false;
+    function changePublicPeriod(
+        uint256 _vitalPublicStart,
+        uint256 _primePublicStart,
+        uint256 _period
+    ) external onlyOwner {
+        vitalPublicStart = _vitalPublicStart;
+        primePublicStart = _primePublicStart;
+        period = _period;
     }
 
     function changePassPrice(
@@ -229,10 +210,6 @@ contract nft_dropsV2 is ERC721, Ownable {
     ) external onlyOwner {
         PRICE_VITAL_PASS = _PRICE_VITAL_PASS;
         PRICE_PRIME_PASS = _PRICE_PRIME_PASS;
-    }
-
-    function changeTimeLimit(uint256 in_days) public onlyOwner {
-        TIME_LIMIT = in_days * 1 days;
     }
 
     // ------------------------------------------------------------------------------------------
