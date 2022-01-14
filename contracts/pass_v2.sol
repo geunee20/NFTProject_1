@@ -63,12 +63,17 @@ contract nft_dropsV2 is ERC721Enumerable, Ownable {
         _;
     }
 
+    PaymentSplitter private _splitter;
+
     constructor(
+        string memory baseURI,
         uint256 _vitalPublicStart,
         uint256 _primePublicStart,
         uint256 _vitalWhitelistStart,
         uint256 _primeWhitelistStart,
-        uint256 _period
+        uint256 _period,
+        address[] memory payees,
+        uint256[] memory shares
     ) ERC721("qwef159", "qwvsda") {
         MAX_VITAL_PASSES = 8000;
         MAX_PRIME_PASSES = 2000;
@@ -87,6 +92,8 @@ contract nft_dropsV2 is ERC721Enumerable, Ownable {
         vitalWhitelistStart = 0;
         primeWhitelistStart = 0;
         period = _period;
+
+        _splitter = new PaymentSplitter(payees, shares);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -111,7 +118,7 @@ contract nft_dropsV2 is ERC721Enumerable, Ownable {
             _safeMint(msg.sender, 1000 + counterVitalPass++);
         }
         balanceVital[msg.sender] += amount;
-        payable(owner()).transfer(msg.value);
+        payable(_splitter).transfer(msg.value);
     }
 
     function mintPrime(uint8 amount) external payable {
@@ -134,7 +141,7 @@ contract nft_dropsV2 is ERC721Enumerable, Ownable {
             _safeMint(msg.sender, counterPrimePass++);
         }
         balancePrime[msg.sender] += amount;
-        payable(owner()).transfer(msg.value);
+        payable(_splitter).transfer(msg.value);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -159,7 +166,7 @@ contract nft_dropsV2 is ERC721Enumerable, Ownable {
 
         _safeMint(msg.sender, 1000 + counterVitalPass++);
         balanceVital[msg.sender]++;
-        payable(owner()).transfer(msg.value);
+        payable(_splitter).transfer(msg.value);
     }
 
     function mintPrimeWhitelist(
@@ -178,7 +185,7 @@ contract nft_dropsV2 is ERC721Enumerable, Ownable {
 
         _safeMint(msg.sender, counterPrimePass++);
         balancePrime[msg.sender]++;
-        payable(owner()).transfer(msg.value);
+        payable(_splitter).transfer(msg.value);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -233,4 +240,8 @@ contract nft_dropsV2 is ERC721Enumerable, Ownable {
     // ------------------------------------------------------------------------------------------
     // Other
     function donate_in_ether() external payable {}
+
+    function release(address payable account) public virtual onlyOwner {
+        _splitter.release(account);
+    }
 }
