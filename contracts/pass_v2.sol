@@ -17,6 +17,8 @@ pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts/finance/PaymentSplitter.sol";
 
 // tokenId: prime 0 ~ 999,                       vital 0 ~ 9999
 //          reserved prime 10000 ~ 10099,        reserved vitl 10100 ~ 11000
@@ -52,6 +54,15 @@ contract nft_dropsV2 is ERC721Enumerable, Ownable {
     mapping(address => uint8) public balancePrime;
     event BaseURIChanged(string BASE_URI);
 
+    modifier onlyWhitelist(
+        bytes32[] proof,
+        bytes32 root,
+        bytes32 leaf
+    ) {
+        require(MerkleProof.verify(proof, root, leaf) == true);
+        _;
+    }
+
     constructor(
         uint256 _vitalPublicStart,
         uint256 _primePublicStart,
@@ -61,8 +72,8 @@ contract nft_dropsV2 is ERC721Enumerable, Ownable {
     ) ERC721("qwef159", "qwvsda") {
         MAX_VITAL_PASSES = 8000;
         MAX_PRIME_PASSES = 2000;
-        MAX_VITAL_WHITELIST = 800;
-        MAX_PRIME_WHITELIST = 200;
+        MAX_VITAL_WHITELIST = 3000;
+        MAX_PRIME_WHITELIST = 1000;
         MAX_RESERVED_VITAL_PASS = 900;
         MAX_RESERVED_PRIME_PASS = 100;
         MAX_VITAL_PER_WALLET = 5;
@@ -128,49 +139,45 @@ contract nft_dropsV2 is ERC721Enumerable, Ownable {
 
     // ------------------------------------------------------------------------------------------
     // Whitelist Minting
-    function mintVitalWhitelist(uint8 amount) external payable {
+    function mintVitalWhitelist(
+        bytes32[] proof,
+        bytes32 root,
+        bytes32 leaf
+    ) external payable onlyWhitelist(proof, root, leaf) {
         require(
             block.timestamp >= vitalWhitelistStart &&
                 block.timestamp <= vitalWhitelistStart + period,
             "Whitelist vital pass minting is closed"
         );
+        require(counterVitalPass < MAX_VITAL_WHITELIST, "It is over");
+        require(balanceVital[msg.sender] == 0, "You already minted vital pass");
         require(
-            balanceVital[msg.sender] + amount <= MAX_VITAL_PER_WALLET,
-            "You exceed maximum vital pass amount per a wallet"
-        );
-        require(
-            counterVitalPass + amount <= MAX_VITAL_WHITELIST,
+            counterVitalPass < MAX_VITAL_WHITELIST,
             "Whitelist vital pass minting is closed"
         );
-        require(msg.value == amount * PRICE_VITAL_PASS, "Value does not match");
+        require(msg.value == PRICE_VITAL_PASS, "Value does not match");
 
-        for (uint8 i = 0; i < amount; i++) {
-            _safeMint(msg.sender, 1000 + counterVitalPass++);
-        }
-        balanceVital[msg.sender] += amount;
+        _safeMint(msg.sender, 1000 + counterVitalPass++);
+        balanceVital[msg.sender]++;
         payable(owner()).transfer(msg.value);
     }
 
-    function mintPrimeWhitelist(uint8 amount) external payable {
+    function mintPrimeWhitelist(
+        bytes32[] proof,
+        bytes32 root,
+        bytes32 leaf
+    ) external payable onlyWhitelist(proof, root, leaf) {
         require(
             block.timestamp >= primeWhitelistStart &&
                 block.timestamp <= primeWhitelistStart + period,
             "Whitelist prime minting is closed"
         );
-        require(
-            balancePrime[msg.sender] + amount <= MAX_PRIME_PER_WALLET,
-            "You exceed maximum amount per a wallet"
-        );
-        require(
-            counterVitalPass + amount <= MAX_PRIME_WHITELIST,
-            "Whitelist prime pass minting is closed"
-        );
+        require(counterPrimePass < MAX_PRIME_WHITELIST, "It is over");
+        require(balancePrime[msg.sender] == 0, "You already minted prime pass");
         require(msg.value == PRICE_PRIME_PASS, "Value does not match");
 
-        for (uint8 i = 0; i < amount; i++) {
-            _safeMint(msg.sender, counterPrimePass++);
-        }
-        balancePrime[msg.sender] += amount;
+        _safeMint(msg.sender, counterPrimePass++);
+        balancePrime[msg.sender]++;
         payable(owner()).transfer(msg.value);
     }
 
