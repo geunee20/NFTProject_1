@@ -55,7 +55,7 @@ contract nft_dropsV2 is ERC721Enumerable, Ownable {
     event BaseURIChanged(string BASE_URI);
 
     modifier onlyWhitelist(
-        bytes32[] proof,
+        bytes32[] memory proof,
         bytes32 root,
         bytes32 leaf
     ) {
@@ -140,7 +140,7 @@ contract nft_dropsV2 is ERC721Enumerable, Ownable {
     // ------------------------------------------------------------------------------------------
     // Whitelist Minting
     function mintVitalWhitelist(
-        bytes32[] proof,
+        bytes32[] calldata proof,
         bytes32 root,
         bytes32 leaf
     ) external payable onlyWhitelist(proof, root, leaf) {
@@ -163,7 +163,7 @@ contract nft_dropsV2 is ERC721Enumerable, Ownable {
     }
 
     function mintPrimeWhitelist(
-        bytes32[] proof,
+        bytes32[] calldata proof,
         bytes32 root,
         bytes32 leaf
     ) external payable onlyWhitelist(proof, root, leaf) {
